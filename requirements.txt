@@ -1,0 +1,34 @@
+# Gemini AI Assistant — pinned dependencies
+# Verified against Python 3.10–3.14 on macOS 12+ and Windows 10/11.
+# All four packages ship prebuilt wheels for macOS (Intel + Apple Silicon)
+# and Windows, so no compiler toolchain is required.
+
+# Official Google Gen AI SDK (google.genai). Requires Python >= 3.10.
+google-genai==2.14.0
+
+# Web UI. 1.60 provides st.chat_input(accept_file=..., accept_audio=...),
+# which this app uses for inline image and microphone attachments.
+streamlit==1.60.0
+
+# Image decoding, EXIF rotation and downscaling before upload.
+pillow==12.3.0
+
+# Loads GEMINI_API_KEY from a local .env file.
+python-dotenv==1.2.2
+
+# --- Local quick-command skills (answered without the Gemini API) --- #
+
+# HTTP client for the Wikipedia REST API. Already pulled in by google-genai;
+# pinned explicitly because assistant_tools.py imports it directly.
+httpx==0.28.1
+
+# Offline one-liner jokes. Pure Python, no network, no data files to download.
+pyjokes==0.8.3
+
+# Rule-based sentiment scoring. Ships its own lexicon, so unlike TextBlob it
+# needs no corpus download step — important for one-command setup.
+vaderSentiment==3.3.2
+
+# Live browser speech-to-text for voice mode (speech_to_text) — recognition
+# runs in the browser, so no audio leaves the device for transcription.
+streamlit-mic-recorder==0.0.8

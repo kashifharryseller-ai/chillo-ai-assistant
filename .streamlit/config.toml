@@ -1,0 +1,37 @@
+# Chillo AI Assistant — "terminal noir" theme.
+#
+# Colours and fonts are set here rather than in CSS so that Streamlit's own
+# widgets (sliders, toggles, selectboxes, code blocks) inherit them natively.
+# ui.py adds only the effects the theme system cannot express: glow, grid,
+# scanlines and the brand header.
+
+[theme]
+base = "dark"
+
+primaryColor = "#00E5A0"            # neon mint — buttons, active states
+backgroundColor = "#05070B"         # near-black main canvas
+secondaryBackgroundColor = "#0B111A"  # chat bubbles, inputs, code blocks
+textColor = "#DCE6F0"
+linkColor = "#22D3EE"               # cyan, distinct from the mint primary
+borderColor = "#18232F"
+
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+headingFont = "'Space Grotesk':https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap"
+codeFont = "'JetBrains Mono':https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap"
+
+baseRadius = "small"                # sharp corners read as "terminal"
+buttonRadius = "small"
+showWidgetBorder = true
+
+[theme.sidebar]
+backgroundColor = "#070A10"
+secondaryBackgroundColor = "#0D141D"
+borderColor = "#18232F"
+primaryColor = "#00E5A0"
+
+[server]
+# Images are downscaled client-side before upload; 25 MB is ample headroom.
+maxUploadSize = 25
+
+[browser]
+gatherUsageStats = false
