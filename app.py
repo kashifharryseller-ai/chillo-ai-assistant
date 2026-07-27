@@ -244,7 +244,11 @@ def init_session_state() -> None:
         "speak_replies": False,
         "voice_mode": False,
         "voice_language": DEFAULT_VOICE_LANGUAGE,
-        "voice_engine": "browser",
+        # ElevenLabs is the default: measured 2.8s per reply against Gemini
+        # TTS's 4.5-8.4s, and it has no 3-per-minute cap. Browser speech is
+        # instant but robotic, and is the automatic fallback on any failure.
+        "voice_engine": "elevenlabs",
+        "gemini_voice": voice.DEFAULT_GEMINI_VOICE,
         "call_mode": False,
         "eleven_voice": voice.DEFAULT_VOICE,
         "eleven_format": voice.DEFAULT_FORMAT,
@@ -640,10 +644,24 @@ def speak(text: str) -> None:
     # In call mode the mic re-arms itself once she stops talking.
     relisten = bool(st.session_state.get("call_mode") and st.session_state.get("voice_mode"))
 
-    if st.session_state.get("voice_engine") == "elevenlabs":
+    engine = st.session_state.get("voice_engine")
+
+    if engine == "gemini":
+        key = resolve_api_key()
+        if key:
+            try:
+                audio = voice.synthesize_gemini(
+                    text, st.session_state.get("gemini_voice", voice.DEFAULT_GEMINI_VOICE), key
+                )
+                ui.speak_audio(audio, seq, auto_listen=relisten)
+                return
+            except voice.VoiceError as exc:
+                st.caption(f"🔇 {exc}")
+
+    elif engine == "elevenlabs":
         key = voice.resolve_api_key()
         if not key:
-            st.caption("🔇 Add an ElevenLabs key in the control deck, or switch to the browser voice.")
+            st.caption("🔇 Add an ElevenLabs key in the control deck, or switch voice engine.")
         else:
             try:
                 audio = voice.synthesize(
@@ -741,16 +759,38 @@ def transcript_json(messages: Sequence[Message]) -> str:
 
 def render_voice_engine_controls() -> None:
     """Voice engine picker, plus the ElevenLabs settings and character budget."""
+    ENGINE_LABELS = {
+        "elevenlabs": "ElevenLabs · human, ~2.8s (default)",
+        "browser": "Browser · instant, robotic",
+        "gemini": "Gemini · human, 4.5–8.4s",
+    }
     st.radio(
         "Voice engine",
-        ["browser", "elevenlabs"],
+        list(ENGINE_LABELS),
         key="voice_engine",
-        format_func=lambda v: "Browser (free)" if v == "browser" else "ElevenLabs (realistic)",
-        horizontal=True,
-        help="ElevenLabs sounds far more natural and enables true lip-sync, but "
-        "bills characters. The browser voice is free and unlimited.",
+        format_func=ENGINE_LABELS.get,
+        help="Measured on this machine: browser is instant but robotic; ElevenLabs "
+        "takes 1.3-2.0s and sounds human; Gemini takes 4.5-8.4s and allows only 3 "
+        "requests per minute on the free tier.",
     )
-    if st.session_state.get("voice_engine") != "elevenlabs":
+    engine = st.session_state.get("voice_engine")
+
+    if engine == "gemini":
+        st.selectbox(
+            "Voice",
+            list(voice.GEMINI_VOICES),
+            key="gemini_voice",
+            format_func=lambda v: voice.GEMINI_VOICES.get(v, v),
+        )
+        st.warning(
+            "Gemini speech is **slow** (4.5–8.4s per reply) and the free tier allows "
+            "only **3 requests per minute** — a back-and-forth conversation will stall. "
+            "Good for the occasional reply; use Browser for real conversation.",
+            icon="🐢",
+        )
+        return
+
+    if engine != "elevenlabs":
         return
 
     key = voice.resolve_api_key()
@@ -1003,7 +1043,9 @@ def render_diagnostics() -> None:
     ]
 
     if st.session_state.get("speak_replies"):
-        if st.session_state.get("voice_engine") == "elevenlabs":
+        if st.session_state.get("voice_engine") == "gemini":
+            cells.append(("voice", st.session_state.get("gemini_voice", "?"), "good"))
+        elif st.session_state.get("voice_engine") == "elevenlabs":
             key = voice.resolve_api_key()
             if not key:
                 cells.append(("voice", "no key", "bad"))

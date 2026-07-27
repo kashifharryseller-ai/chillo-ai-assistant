@@ -5,7 +5,7 @@ Split out of ``app.py`` so the chat/API logic stays readable. Base colours,
 fonts and radii live in ``.streamlit/config.toml`` (Streamlit applies those to
 its own widgets); this module adds only what the theme system cannot express:
 
-* the grid + scanline backdrop and neon glow,
+* a restrained dark surface and the brand header,
 * the brand header and live status strip,
 * the browser speech engine, which pins one consistent female voice.
 """
@@ -38,37 +38,21 @@ CYAN = "#22D3EE"
 
 CHILLO_CSS = f"""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&display=swap');
 
 :root {{
     --chillo-accent: {ACCENT};
     --chillo-cyan: {CYAN};
-    --chillo-line: rgba(0, 229, 160, 0.14);
 }}
 
-/* ---------- Backdrop: faint engineering grid + vignette ---------- */
+/* ---------- Backdrop ----------
+   Deliberately plain. An earlier version layered an engineering grid and
+   scanlines over everything; at real text sizes that competes with the
+   content instead of framing it. One soft glow at the top is enough to
+   stop the page reading as flat black. */
 [data-testid="stAppViewContainer"] {{
-    background-color: #05070B;
+    background-color: #06080C;
     background-image:
-        linear-gradient(var(--chillo-line) 1px, transparent 1px),
-        linear-gradient(90deg, var(--chillo-line) 1px, transparent 1px),
-        radial-gradient(ellipse 80% 55% at 50% -10%, rgba(0, 229, 160, 0.10), transparent 70%),
-        radial-gradient(ellipse 60% 50% at 90% 100%, rgba(34, 211, 238, 0.07), transparent 70%);
-    background-size: 44px 44px, 44px 44px, 100% 100%, 100% 100%;
-}}
-
-/* Scanlines. pointer-events:none is essential — this layer sits over the app. */
-[data-testid="stAppViewContainer"]::after {{
-    content: "";
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 3;
-    background: repeating-linear-gradient(
-        180deg, rgba(0, 0, 0, 0) 0px, rgba(0, 0, 0, 0) 2px,
-        rgba(0, 0, 0, 0.20) 3px, rgba(0, 0, 0, 0) 4px);
-    opacity: 0.35;
-    mix-blend-mode: multiply;
+        radial-gradient(ellipse 70% 45% at 50% -15%, rgba(0, 229, 160, 0.06), transparent 70%);
 }}
 
 [data-testid="stHeader"] {{ background: transparent; }}
@@ -85,61 +69,48 @@ CHILLO_CSS = f"""
                  system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }}
 
-/* ---------- Brand header ---------- */
+/* ---------- Brand header ----------
+   One quiet line: wordmark on the left, status on the right. The boxed,
+   glowing panel it replaced ate ~120px of vertical space to say very little. */
 .chillo-header {{
     display: flex;
-    align-items: center;
+    align-items: baseline;
     justify-content: space-between;
     gap: 1rem;
     flex-wrap: wrap;
-    padding: 0.9rem 1.15rem;
-    margin-bottom: 1.1rem;
-    border: 1px solid rgba(0, 229, 160, 0.22);
-    border-left: 3px solid var(--chillo-accent);
-    background: linear-gradient(100deg, rgba(0, 229, 160, 0.07), rgba(5, 7, 11, 0.2) 45%);
-    box-shadow: 0 0 26px rgba(0, 229, 160, 0.10), inset 0 0 40px rgba(0, 229, 160, 0.03);
+    padding: 0 0 0.75rem 0;
+    margin-bottom: 0.9rem;
+    border-bottom: 1px solid #16202B;
 }}
 .chillo-wordmark {{
-    font-family: 'Orbitron', 'Space Grotesk', sans-serif;
-    font-weight: 800;
-    font-size: 1.65rem;
-    letter-spacing: 0.16em;
-    color: #EAFFF8;
-    text-shadow: 0 0 12px {ACCENT_DIM}, 0 0 30px rgba(0, 229, 160, 0.25);
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 1.15rem;
+    letter-spacing: 0.02em;
+    color: #EAF2EE;
     line-height: 1.1;
     margin: 0;
 }}
 .chillo-wordmark span {{ color: var(--chillo-accent); }}
 .chillo-sub {{
     font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 0.66rem;
-    letter-spacing: 0.28em;
-    color: #6C8296;
-    margin-top: 0.28rem;
+    font-size: 0.6rem;
+    letter-spacing: 0.16em;
+    color: #586B7C;
+    margin-top: 0.15rem;
     text-transform: uppercase;
 }}
-.chillo-meta {{
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 0.68rem;
-    line-height: 1.75;
-    color: #7C93A6;
-    text-align: right;
-}}
-.chillo-meta b {{ color: #C7E7DC; font-weight: 500; }}
 
-/* Status pill with a breathing dot. */
+/* Status: a dot and a word. No pill, no border, no background. */
 .chillo-status {{
     display: inline-flex;
     align-items: center;
-    gap: 0.45rem;
+    gap: 0.4rem;
     font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 0.63rem;
-    letter-spacing: 0.16em;
+    font-size: 0.62rem;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--chillo-accent);
-    border: 1px solid rgba(0, 229, 160, 0.3);
-    padding: 0.18rem 0.55rem;
-    background: rgba(0, 229, 160, 0.06);
+    color: #6E8697;
 }}
 .chillo-dot {{
     width: 7px; height: 7px; border-radius: 50%;
@@ -149,8 +120,6 @@ CHILLO_CSS = f"""
 }}
 .chillo-status.is-listening {{
     color: var(--chillo-cyan);
-    border-color: rgba(34, 211, 238, 0.45);
-    background: rgba(34, 211, 238, 0.08);
 }}
 .chillo-status.is-listening .chillo-dot {{
     background: var(--chillo-cyan);
@@ -163,38 +132,32 @@ CHILLO_CSS = f"""
 }}
 
 /* ---------- Chat ---------- */
+/* Messages sit on the page rather than in boxes; only the assistant gets a
+   thin accent rail so the two speakers are still instantly distinguishable. */
 [data-testid="stChatMessage"] {{
-    background: rgba(11, 17, 26, 0.72);
-    border: 1px solid #16212D;
-    border-left: 2px solid #24384A;
-    backdrop-filter: blur(3px);
+    background: transparent;
+    border: none;
+    border-left: 2px solid #1C2733;
+    border-radius: 0;
+    padding-left: 0.9rem;
 }}
-/* Assistant turns get the accent rail; user turns stay cool-toned. */
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) {{
     border-left-color: var(--chillo-accent);
-    box-shadow: -10px 0 26px -18px var(--chillo-accent);
 }}
 
 [data-testid="stChatInput"] {{
     border: 1px solid #1E2C3A;
-    box-shadow: 0 0 0 1px rgba(0, 229, 160, 0.05), 0 8px 30px rgba(0, 0, 0, 0.5);
+    box-shadow: none;
 }}
 [data-testid="stChatInput"]:focus-within {{
-    border-color: var(--chillo-accent);
-    box-shadow: 0 0 0 1px var(--chillo-accent), 0 0 24px rgba(0, 229, 160, 0.22);
+    border-color: rgba(0, 229, 160, 0.55);
+    box-shadow: none;
 }}
 
-/* Code blocks read as terminal output. */
-[data-testid="stCode"], .stCodeBlock {{
-    border: 1px solid #1B2A38;
-    border-left: 2px solid var(--chillo-cyan);
-}}
+[data-testid="stCode"], .stCodeBlock {{ border: 1px solid #1B2A38; }}
 
 /* ---------- Sidebar ---------- */
-[data-testid="stSidebar"] {{
-    border-right: 1px solid rgba(0, 229, 160, 0.16);
-    box-shadow: inset -22px 0 40px -34px var(--chillo-accent);
-}}
+[data-testid="stSidebar"] {{ border-right: 1px solid #16202B; }}
 [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {{
     font-family: 'JetBrains Mono', ui-monospace, monospace !important;
     font-size: 0.72rem !important;
@@ -217,19 +180,12 @@ CHILLO_CSS = f"""
 /* ---------- Mobile ---------- */
 @media (max-width: 768px) {{
     .block-container {{ padding: 0.8rem 0.8rem 5.5rem 0.8rem; }}
-    .chillo-header {{ padding: 0.75rem 0.9rem; }}
-    .chillo-wordmark {{ font-size: 1.25rem; letter-spacing: 0.12em; }}
-    .chillo-meta {{ text-align: left; font-size: 0.62rem; }}
-    [data-testid="stAppViewContainer"] {{ background-size: 30px 30px, 30px 30px, 100% 100%, 100% 100%; }}
+    .chillo-wordmark {{ font-size: 1.05rem; }}
     .stButton > button, .stDownloadButton > button {{ min-height: 2.9rem; font-size: 1rem; }}
     [data-testid="stChatMessageContent"] p {{ font-size: 1rem; line-height: 1.55; }}
 }}
 
-/* Users who prefer reduced motion should not get pulsing or scanlines. */
-@media (prefers-reduced-motion: reduce) {{
-    .chillo-dot {{ animation: none; }}
-    [data-testid="stAppViewContainer"]::after {{ display: none; }}
-}}
+@media (prefers-reduced-motion: reduce) {{ .chillo-dot {{ animation: none; }} }}
 </style>
 """
 
@@ -257,11 +213,7 @@ def render_header(listening: bool = False) -> None:
                 <div class="chillo-wordmark">{BRAND_NAME}<span>_</span></div>
                 <div class="chillo-sub">{BRAND_SUFFIX}</div>
             </div>
-            <div class="chillo-meta">
-                <div class="{status_class}"><span class="chillo-dot"></span>{status_text}</div>
-                <div>neural core <b>active</b></div>
-                <div>built by <b>{CREATOR_NAME}</b></div>
-            </div>
+            <div class="{status_class}"><span class="chillo-dot"></span>{status_text}</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -270,30 +222,26 @@ def render_header(listening: bool = False) -> None:
 
 HUD_CSS = """
 <style>
+/* Readouts as inline "label value" pairs that wrap naturally. The previous
+   fixed grid clipped longer values ("flash-lite-la…") and boxed each one in
+   its own cell, which was a lot of chrome for six short facts. */
 .chillo-hud {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
-    gap: 1px;
-    margin: -0.35rem 0 1.1rem 0;
-    background: rgba(0, 229, 160, 0.14);
-    border: 1px solid rgba(0, 229, 160, 0.18);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 1.5rem;
+    margin: 0 0 1.4rem 0;
     font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.68rem;
 }
-.chillo-cell { background: #070C12; padding: 0.5rem 0.7rem; }
+.chillo-cell { display: flex; align-items: baseline; gap: 0.45rem; }
 .chillo-cell .k {
-    font-size: 0.55rem; letter-spacing: 0.2em; text-transform: uppercase; color: #5E7488;
+    font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: #4E6274;
 }
-.chillo-cell .v {
-    font-size: 0.78rem; color: #C7E7DC; margin-top: 0.18rem;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
+.chillo-cell .v { color: #9FB4C2; }        /* no truncation — values wrap */
 .chillo-cell .v.good { color: #00E5A0; }
-.chillo-cell .v.warn { color: #FFC46B; }
-.chillo-cell .v.bad  { color: #FF6B6B; }
-@media (max-width: 768px) {
-    .chillo-hud { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
-    .chillo-cell { padding: 0.4rem 0.5rem; }
-}
+.chillo-cell .v.warn { color: #E0A85C; }
+.chillo-cell .v.bad  { color: #E86A6A; }
+@media (max-width: 768px) { .chillo-hud { gap: 0.3rem 1rem; font-size: 0.64rem; } }
 </style>
 """
 
