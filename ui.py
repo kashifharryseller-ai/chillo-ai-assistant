@@ -268,6 +268,53 @@ def render_header(listening: bool = False) -> None:
     )
 
 
+HUD_CSS = """
+<style>
+.chillo-hud {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+    gap: 1px;
+    margin: -0.35rem 0 1.1rem 0;
+    background: rgba(0, 229, 160, 0.14);
+    border: 1px solid rgba(0, 229, 160, 0.18);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+.chillo-cell { background: #070C12; padding: 0.5rem 0.7rem; }
+.chillo-cell .k {
+    font-size: 0.55rem; letter-spacing: 0.2em; text-transform: uppercase; color: #5E7488;
+}
+.chillo-cell .v {
+    font-size: 0.78rem; color: #C7E7DC; margin-top: 0.18rem;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.chillo-cell .v.good { color: #00E5A0; }
+.chillo-cell .v.warn { color: #FFC46B; }
+.chillo-cell .v.bad  { color: #FF6B6B; }
+@media (max-width: 768px) {
+    .chillo-hud { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
+    .chillo-cell { padding: 0.4rem 0.5rem; }
+}
+</style>
+"""
+
+
+def render_hud(cells: list[tuple[str, str, str]]) -> None:
+    """
+    Draw the diagnostics strip: a row of (label, value, state) readouts.
+
+    ``state`` is "", "good", "warn" or "bad" and only tints the value. This is
+    the JARVIS conceit made useful — the numbers that actually decide whether
+    the next turn works (engine, quota, voice) sit on screen instead of being
+    discovered through a failure.
+    """
+    tiles = "".join(
+        f'<div class="chillo-cell"><div class="k">{k}</div>'
+        f'<div class="v {state}">{v}</div></div>'
+        for k, v, state in cells
+    )
+    st.markdown(f'{HUD_CSS}<div class="chillo-hud">{tiles}</div>', unsafe_allow_html=True)
+
+
 def render_credit() -> None:
     """Creator credit for the sidebar footer."""
     st.markdown(

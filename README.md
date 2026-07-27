@@ -28,7 +28,7 @@ lip-syncs an on-screen avatar to her own audio.
 - Code blocks with syntax highlighting and one-click copy
 
 **Voice**
-- **Live voice mode** — the browser transcribes your speech locally and sends it as text
+- **Live voice mode** — record your voice and it is transcribed to text before being sent
 - **Call mode** — after Chillo finishes speaking the microphone re-arms itself, so you can
   talk → listen → talk without touching anything, like a phone call
 - **Two voice engines** — the browser's built-in synthesis (free, unlimited) or
@@ -192,7 +192,20 @@ image or voice note always goes to the model too.
 | Audio quality | Sidebar (ElevenLabs) | High quality, or compact for faster loading |
 | Live voice mode | Sidebar | Push-to-talk console; browser does the transcription |
 | Call mode | Sidebar (voice mode on) | Hands-free loop — mic re-arms after each reply |
-| Recognition language | Sidebar (voice mode on) | English, Urdu (PK), Punjabi, Hindi, Arabic |
+| Recognition language | Sidebar (voice mode on) | **Urdu (PK) by default**, plus English, Hindi, Punjabi, Arabic |
+
+> ⚠️ **How speech recognition actually works here.** `streamlit-mic-recorder`'s
+> `speech_to_text` does **not** transcribe in the browser. It records WAV audio, sends the
+> bytes to Python, and calls `SpeechRecognition`'s `recognize_google()` — Google's *free,
+> unofficial* speech endpoint. Two consequences worth knowing:
+>
+> - **Your audio is uploaded to Google for transcription.** It does not stay on device.
+> - **Failures are silent.** The library catches every exception and returns `None`, so a
+>   rate-limit, network blip, or unrecognised phrase looks identical to "you said nothing".
+>
+> That free endpoint is the main reason recognition feels unreliable. For production,
+> replace it with a paid STT API (ElevenLabs Scribe, Deepgram, or Google Cloud STT with a
+> real key) — `render_voice_console()` in `app.py` is the single place to change.
 
 **Model choice matters for Urdu.** Chillo requests `eleven_v3`, which lists **74 languages
 including Urdu**. The commonly-quoted `eleven_multilingual_v2` covers only 29 and does

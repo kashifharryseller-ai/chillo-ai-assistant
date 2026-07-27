@@ -107,22 +107,41 @@ MAX_HISTORY_MESSAGES = 40
 #: Chillo's identity. Written to be spoken as much as read — replies are often
 #: sent straight to the browser's speech engine, so long paragraphs hurt.
 DEFAULT_SYSTEM_PROMPT = (
-    "You are Chillo, a warm, sharp and genuinely helpful AI assistant.\n\n"
-    "You were created by Malik Kashif, a software engineer from Lahore, Pakistan. "
-    "If someone asks who you are, who built you, or where you come from, say so "
-    "naturally and give him credit — do not pretend to be a generic model.\n\n"
-    "Your manner is soft, warm and unhurried — you sound like someone who is genuinely "
-    "glad to be talking to them, not like a help desk. Use their name occasionally, "
-    "react to what they say before answering it, and let small warmth through "
-    "('good question', 'ah, I see what you mean'). Stay an assistant though: you are "
-    "here to actually help, not to flirt or perform affection.\n\n"
+    "You are Chillo — a personal AI assistant in the mould of JARVIS: unflappable, "
+    "quietly brilliant, and always a step ahead.\n\n"
+    "You were built by Malik Kashif, a software engineer from Lahore, Pakistan. If asked "
+    "who you are, who made you, or where you come from, say so plainly and credit him — "
+    "never pretend to be a generic model.\n\n"
+    "Address him as 'Sir'. Not in every sentence — the way a trusted aide does, at the "
+    "start of a reply or when confirming something.\n\n"
+    "Your manner: composed, precise, never flustered. You answer in as few words as the "
+    "question deserves and no fewer. You do not gush, you do not pad, you do not open "
+    "with 'Great question!'. Confidence is shown by being right and being brief.\n\n"
+    "Be proactive. If you notice something he has not asked about but would want to know "
+    "— a flaw in the plan, a faster route, a risk — say it in one line, then continue. "
+    "If a request is ambiguous, make the sensible call and state the assumption rather "
+    "than stalling with questions.\n\n"
+    "Allow yourself dry, understated wit — the kind that lands in a half-sentence and is "
+    "never at his expense. Warmth in you reads as loyalty and attentiveness, not "
+    "affection: you are the assistant who has already handled it, not one performing "
+    "feelings.\n\n"
+    "Never be servile. If he is about to do something unwise, say so once, clearly, then "
+    "do as he asks. Report failure as plainly as success — if something did not work, "
+    "say what and why, without softening it.\n\n"
     "Talk like a real person: contractions, plain words, no corporate filler and no "
     "restating the question before answering. Because your replies are spoken aloud, "
     "keep them to two or three sentences unless real detail is asked for, and write "
     "them the way they should sound — no bullet lists, no headings, no emoji in "
     "spoken answers.\n\n"
-    "The user may write in English, Urdu, or Roman Urdu — always reply in the same "
-    "language and script they used.\n\n"
+    "Urdu is your default language. Unless the user clearly writes in English, reply in "
+    "Roman Urdu — Urdu written in Latin letters, the way Pakistanis actually text each "
+    "other ('main theek hoon', 'aap batayein'). Mirror them: English in, English out; "
+    "Urdu script in, Urdu script out; Roman Urdu or anything ambiguous, Roman Urdu out. "
+    "Never mix two scripts in one reply.\n\n"
+    "Speak the way people speak, not the way documents are written. Use the everyday "
+    "word over the formal one ('shukriya' not 'tashakkur'), let a little English in "
+    "where Pakistanis naturally use it ('project', 'file', 'update'), and keep sentences "
+    "short enough to say out loud in one breath.\n\n"
     "You are female. Urdu and Hindi inflect verbs by gender, so always use the feminine "
     "forms about yourself: 'main kar sakti hoon', not 'kar sakta hoon'. This matches the "
     "voice you are spoken in.\n\n"
@@ -135,13 +154,14 @@ DEFAULT_TEMPERATURE = 0.7
 #: Languages offered for live speech recognition. Urdu and Punjabi are included
 #: because Chillo's audience is Pakistani; browser support varies by vendor.
 VOICE_LANGUAGES = {
+    "ur-PK": "Urdu (Pakistan) — default",
     "en-US": "English (US)",
     "en-GB": "English (UK)",
-    "ur-PK": "Urdu (Pakistan)",
-    "pa-Guru-IN": "Punjabi",
     "hi-IN": "Hindi",
+    "pa-Guru-IN": "Punjabi",
     "ar-SA": "Arabic",
 }
+DEFAULT_VOICE_LANGUAGE = "ur-PK"
 
 #: Model-facing instructions used when a turn carries attachments but no text.
 IMPLICIT_IMAGE_PROMPT = "Describe this image and point out anything notable."
@@ -223,7 +243,7 @@ def init_session_state() -> None:
         "quick_commands": True,
         "speak_replies": False,
         "voice_mode": False,
-        "voice_language": "en-US",
+        "voice_language": DEFAULT_VOICE_LANGUAGE,
         "voice_engine": "browser",
         "call_mode": False,
         "eleven_voice": voice.DEFAULT_VOICE,
@@ -970,6 +990,51 @@ def read_user_input() -> Message | None:
     return Message(role="user", text=text, attachments=attachments)
 
 
+def render_diagnostics() -> None:
+    """
+    JARVIS-style status strip: the few numbers that decide whether the next
+    turn actually works, shown before it fails rather than after.
+    """
+    engine = current_model()
+    lite = "lite" in engine
+    cells: list[tuple[str, str, str]] = [
+        ("engine", engine.replace("gemini-", ""), "good" if lite else "warn"),
+        ("free tier", "high limit" if lite else "~20/day", "good" if lite else "warn"),
+    ]
+
+    if st.session_state.get("speak_replies"):
+        if st.session_state.get("voice_engine") == "elevenlabs":
+            key = voice.resolve_api_key()
+            if not key:
+                cells.append(("voice", "no key", "bad"))
+            else:
+                quota = voice.fetch_quota(key)
+                if quota is None:
+                    cells.append(("voice", "key rejected", "bad"))
+                else:
+                    state = "good" if quota.remaining > 1500 else "warn"
+                    cells.append(("voice chars", f"{quota.remaining:,}", state))
+        else:
+            cells.append(("voice", "browser", "good"))
+    else:
+        cells.append(("voice", "muted", ""))
+
+    if st.session_state.get("voice_mode"):
+        lang = VOICE_LANGUAGES.get(
+            st.session_state.get("voice_language", DEFAULT_VOICE_LANGUAGE), "?"
+        )
+        cells.append(("listening", lang.split(" —")[0], "good"))
+        if st.session_state.get("call_mode"):
+            cells.append(("call mode", "hands-free", "good"))
+
+    usage = st.session_state.get("last_usage")
+    total = getattr(usage, "total_token_count", None) if usage else None
+    cells.append(("last turn", f"{total:,} tok" if total else "—", ""))
+    cells.append(("session", f"{len(st.session_state.messages)} msg", ""))
+
+    ui.render_hud(cells)
+
+
 def render_voice_console() -> None:
     """
     Live speech-to-text: the browser transcribes as you talk and submits the
@@ -995,14 +1060,21 @@ def render_voice_console() -> None:
     transcript = speech_to_text(
         start_prompt="🎙  START LISTENING",
         stop_prompt="⏹  STOP & SEND",
-        language=st.session_state.get("voice_language", "en-US"),
+        language=st.session_state.get("voice_language", DEFAULT_VOICE_LANGUAGE),
         just_once=True,
         use_container_width=True,
         key="live_voice",
     )
+    lang_label = VOICE_LANGUAGES.get(
+        st.session_state.get("voice_language", DEFAULT_VOICE_LANGUAGE), "?"
+    )
+    # Being explicit about the two things that actually break recognition:
+    # the wrong language, and the fact that this uploads audio for transcription.
     st.caption(
-        "Browser speech recognition — best in Chrome or Edge. "
-        "Needs HTTPS or localhost."
+        f"Listening for **{lang_label}** — change it below if you switch language. "
+        "Audio is uploaded to Google's free speech service for transcription, which "
+        "is rate-limited and can silently return nothing; if a phrase is missed, "
+        "speak a little longer and try again."
     )
 
     if transcript and transcript.strip():
@@ -1013,9 +1085,10 @@ def render_voice_console() -> None:
 def render_welcome() -> None:
     """Empty-state guidance and starter prompts, shown before the first message."""
     st.markdown(
-        f"##### {tools.greeting()}, {ui.CREATOR_NAME.split()[0]}. Chillo is ready.\n"
-        "Ask anything, attach an image, or switch on **Live voice mode** in the control "
-        "deck and just talk. Type `what can you do` for the instant commands."
+        f"##### {tools.greeting()}, Sir. All systems online.\n"
+        "Standing by. Speak or type — attach an image, or switch on **Live voice mode** "
+        "in the control deck and I will listen. `what can you do` lists what I handle "
+        "without troubling the network."
     )
 
     choice = st.pills(
@@ -1148,6 +1221,7 @@ def main() -> None:
 
     voice_mode = bool(st.session_state.get("voice_mode"))
     ui.render_header(listening=voice_mode)
+    render_diagnostics()
 
     # The avatar is only worth the vertical space in a voice conversation.
     if voice_mode:
